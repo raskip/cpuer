@@ -62,3 +62,21 @@ swiftc -parse-as-library -framework SwiftUI -framework AppKit -framework IOKit -
 ```
 
 Requires macOS and Xcode command line tools (`xcode-select --install`).
+
+## Prerequisites
+
+- macOS with the Swift toolchain from Xcode command line tools (`xcode-select --install`). No explicit deployment target is declared in this repo — there is no `Package.swift`, `.xcodeproj`, or `Info.plist`; the build command in the section above invokes `swiftc` directly against `CpuerApp.swift`, so the minimum supported macOS version is whatever your installed Swift toolchain targets by default.
+- Apple Silicon recommended for the P-core / E-core split. The split uses `hw.perflevel0.logicalcpu` / `hw.perflevel1.logicalcpu` (`CpuerApp.swift` lines 97–99); when those keys are unavailable the helper returns `(0, 0)` and the UI reports 0 P-cores and 0 E-cores. The existing [Important limitations](#important-limitations) section already describes this behavior for Intel Macs.
+
+## Troubleshooting
+
+- **P-core / E-core counts both show 0**: the `hw.perflevel*` sysctl keys returned no value (typical on Intel Macs). Per-core utilization is still collected from `host_processor_info` and displayed, only the P/E grouping is missing.
+- **CPU model shows "Apple Silicon" instead of a specific chip name**: `machdep.cpu.brand_string` was unavailable — the existing fallback at the top of `CpuerApp.swift` kicks in (see the README's *Important limitations*).
+- **Process list merges unrelated processes**: expected behavior — `ps -eo pid,pcpu,rss,comm -r` is aggregated by executable name. Already noted in *Important limitations*.
+
+## Known Limitations
+
+The repository already documents measurement limitations under [Important limitations](#important-limitations) above. Additional notes:
+
+- Sampling intervals are hardcoded: 2.0 s for CPU ticks / per-process, 5.0 s for the slower refresh (`CpuerApp.swift` lines 298 and 301). There is no Preferences UI to change them — editing these values requires a source edit and rebuild.
+- Build produces a standalone unsigned binary. No code signing, notarization, or `.app` bundle is created by the `swiftc` command in [Building](#building).
